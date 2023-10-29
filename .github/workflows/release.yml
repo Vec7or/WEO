@@ -1,0 +1,220 @@
+name: Publish Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version_xyz:
+        type: string
+        description: 'Version with format x.y.z'
+        required: true
+      is_production_release:
+        type: boolean
+        description: 'Production release'
+        default: false
+
+jobs:
+  prepare-configs:
+    runs-on: ubuntu-latest
+    env:
+      VERSION_FORMAT: ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$
+      VERSION_FORMAT_WITH_BUILD: ^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\+[1-9]{1,4}$
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate version input
+        run: |
+          # check version format, abort if incorrect
+          echo "${{ github.event.inputs.version_xyz }}" |
+          grep -Eq "${{ env.VERSION_FORMAT }}"  && 
+          echo "version format correct" || 
+          (echo "version format error"; exit 1)
+
+      - name: Validate changelog
+        run: |
+          # Check if changelog contains version info
+          cat CHANGELOG.md |
+          grep -Eq "\[${{ github.event.inputs.version_xyz }}\]"  && 
+          echo "version found in changelog" || 
+          (echo "version not in changelog"; exit 1)
+
+      - name: Generate prod version file
+        if: ${{ github.event.inputs.is_production_release == 'true' }}
+        run: |
+          echo "${{ github.event.inputs.version_xyz }}+${{ github.run_number }}" | tee version.txt
+          exit 0
+
+      - name: Generate development version file
+        if: ${{ github.event.inputs.is_production_release == 'false' }}
+        run: |
+          echo "${{ github.event.inputs.version_xyz }}-dev+${{ github.run_number }}" | tee version.txt
+          exit 0
+
+      - name: Upload version file
+        uses: actions/upload-artifact@v4
+        with:
+          name: "version_file"
+          path: |
+            version.txt
+          retention-days: 1
+
+      - name: Expose version
+        id: expose-version
+        run: |
+          VERSION=$(cat version.txt)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Adjust pyproject version
+        run: |
+          sed -i -e 's/version\s*=\s*"[^"]*"\s*$/version = "${{ steps.expose-version.outputs.version }}"/g' pyproject.toml
+          sed -i -e 's/target_name\s*=\s*"[^"]*"\s*$/target_name = "WEO-${{ steps.expose-version.outputs.version }}-win64-user.msi"/g' pyproject.toml
+
+      - name: Upload user pyproject file
+        uses: actions/upload-artifact@v4
+        with:
+          name: "pyproject_user"
+          path: |
+            pyproject.toml
+          retention-days: 1
+
+      - name: Adjust pyproject for system installation
+        run: |
+          sed -i -e 's/all_users\s*=\s*\S*\s*$/all_users = true/g' pyproject.toml
+          sed -i -e 's/target_name\s*=\s*"[^"]*"\s*$/target_name = "WEO-${{ steps.expose-version.outputs.version }}-win64-system.msi"/g' pyproject.toml
+
+      - name: Upload system pyproject file
+        uses: actions/upload-artifact@v4
+        with:
+          name: "pyproject_system"
+          path: |
+            pyproject.toml
+          retention-days: 1
+
+      - name: Expose year
+        id: expose-year
+        run: |
+          YEAR=$(date +'%Y')
+          echo "year=${YEAR}" >> $GITHUB_OUTPUT
+
+      - name: Adjust license file
+        run: |
+          sed -i -e 's/\[year\]/${{ steps.expose-year.outputs.year }}/g' ./assets/license.rtf
+
+      - name: Upload license file
+        uses: actions/upload-artifact@v4
+        with:
+          name: "license"
+          path: |
+            ./assets/license.rtf
+          retention-days: 1
+
+  build-weo:
+    runs-on: windows-latest
+    needs: [ prepare-configs ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get correct python version
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install poetry
+        run: pip install poetry
+
+      - name: Install dependencies
+        run: poetry install
+      - name: Download user pyproject
+        uses: actions/download-artifact@v4
+        with:
+          name: "license"
+          path: ./assets/
+
+      - name: Download user pyproject
+        uses: actions/download-artifact@v4
+        with:
+          name: "pyproject_user"
+
+      - name: Build user application
+        run: |
+          poetry run cxfreeze bdist_msi
+
+      - name: Download system pyproject
+        uses: actions/download-artifact@v4
+        with:
+          name: "pyproject_system"
+
+      - name: Build system application
+        run: |
+          poetry run cxfreeze bdist_msi
+
+      - name: Upload build artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: "dist"
+          path: |
+            dist
+          retention-days: 1
+
+
+  create-weo-release:
+    permissions: write-all
+    runs-on: ubuntu-latest
+    needs: [ build-weo, prepare-configs ]
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download version file
+        uses: actions/download-artifact@v4
+        with:
+          name: version_file
+          path: |
+            .
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: |
+            dist
+
+      - name: Expose version
+        id: expose-version
+        run: |
+          VERSION=$(cat version.txt)
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+      - name: Setup git user
+        run: |
+          git config user.name "${GITHUB_ACTOR}"
+          git config user.email "${GITHUB_ACTOR}@users.noreply.github.com"
+
+      - name: Push version tag
+        run: |
+          tag=${{ steps.expose-version.outputs.version }}
+          # fail immediately if the tag already exists in the repository
+          test -n "$(git tag -l ${tag})" && echo "::error::tag ${tag} already exists, do not push again" && exit 1
+          if [[ ${{ github.event.inputs.is_production_release }} == true ]]; then
+            git tag -a "${tag}" -m "github: production release"
+          else
+            git tag -a "${tag}" -m "github: development release"
+          fi
+          git push origin "${tag}"
+
+      - name: Publish github release
+        uses: ncipollo/release-action@v1
+        with:
+          artifacts: "./dist/*.msi"
+          bodyFile: "./CHANGELOG.md"
+          tag: ${{ steps.expose-version.outputs.version }}
+          draft: true
+          name: ${{ steps.expose-version.outputs.version }}
+          prerelease: ${{ github.event.inputs.is_production_release == 'false' }}

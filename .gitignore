@@ -1,0 +1,7 @@
+_staging
+__pycache__
+.idea
+staging
+build
+dist
+*.spec
