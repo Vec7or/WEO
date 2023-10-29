@@ -1,0 +1,82 @@
+# Create new environment instances
+---
+# Create a new wsl instance
+- name: Create WSL instance
+  include_role:
+    name: wsl
+    tasks_from: create
+
+# Add the service user for jenkins with the following configuration:
+# - Home directory deactivated since it is not needed for a service user
+# - Created as service user as to not be seen in the login dialog e.g.
+# - Shell set to /bin/false so that no login is possible for this user
+- name: Add user for jenkins
+  user:
+    name: "{{ jenkins_service_user }}"
+    password: "*"
+    shell: /bin/bash
+    state: present
+    #system: true
+    #create_home: false
+
+# Makes sure pip is installed. Pip will not be removed upon deinstallation.
+- name: Install pip if necessary
+  apt:
+    update_cache: true
+    name:
+      - python3-pip
+    state: present
+
+# Installs TinkerForge according to roles/tinkerforge/tasks/install.yml
+- name: Install TinkerForge
+  include_role:
+    name: tinkerforge
+    tasks_from: install
+
+# Installs J-Link according to roles/jlink/tasks/install.yml
+- name: Add J-Link
+  include_role:
+    name: jlink
+    tasks_from: install
+
+# Installs Yepkit according to roles/yepkit/tasks/install.yml
+- name: Add Yepkit
+  include_role:
+    name: yepkit
+    tasks_from: install
+
+# Installs FTDI according to roles/ftdi/tasks/install.yml
+- name: Add FTDI
+  include_role:
+    name: ftdi
+    tasks_from: install
+
+# Installs zBleTestAdapter according to roles/z-ble-test-adapter/tasks/install.yml
+- name: Add zBleTestAdapter
+  include_role:
+    name: z-ble-test-adapter
+    tasks_from: install
+
+# Installs jenkins-agent according to roles/jenkins-agent/tasks/install.yml
+- name: Add jenkins-agent
+  include_role:
+    name: jenkins-agent
+    tasks_from: install
+    
+# Installs robotframework according to roles/robotframework/tasks/install.yml
+- name: Add robotframework
+  include_role:
+    name: robotframework
+    tasks_from: install
+
+# Installs smartmonitor-tools according to roles/smartmonitor-tools/tasks/install.yml
+- name: Add smartmonitor-tools
+  include_role:
+    name: smartmonitor-tools
+    tasks_from: install
+
+# Installs development-tools according to roles/development-tools/tasks/install.yml
+- name: Add development-tools
+  include_role:
+    name: development-tools
+    tasks_from: install

@@ -1,0 +1,5 @@
+# Standard variables that can be overwritten by variables defined within the playbook or the inventory.
+---
+# The name used for the wsl instance
+wsl_instance_name: {{ inventory_hostname }}
+wsl_template_file: "$HOME/ubuntu.tar"

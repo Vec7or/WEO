@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "weo"
+version = "0.1.0"
+description = ""
+authors = ["Your Name <you@example.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = ">=3.12,<3.13"
+requests = "^2.31.0"
+colorama = "^0.4.6"
+pyinstaller = "^6.1.0"
+tqdm = "^4.66.1"
+pylint = "^3.0.2"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.poetry.scripts]
+build = "WEO.pyinstaller:install"
