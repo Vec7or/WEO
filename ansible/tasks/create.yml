@@ -1,0 +1,7 @@
+# Create new environment instances
+---
+# Create a new wsl instance
+- name: Create basic instance
+  include_role:
+    name: basic
+    tasks_from: create

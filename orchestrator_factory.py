@@ -23,10 +23,12 @@ class OrchestratorFactory:
     _ubuntu_template_file = "ubuntu_22-04.tar.gz"
     _orchestrator_template_file = "weo.tar.gz"
     _weo_template_file = "weo_ubuntu.tar"
+    _orchestrator_instance_name = "weo_orchestrator"
 
     def __init__(self):
         wsl_storage_dir = os.path.expanduser('~') + "\\wsl"
         self._wsl_api = WslApi(wsl_storage_dir)
+        self._orchestrator = Orchestrator(self._orchestrator_instance_name, self._wsl_api, self._weo_template_file_path())
 
     @staticmethod
     def _staging_path(file: str) -> str:
@@ -34,7 +36,11 @@ class OrchestratorFactory:
 
     @staticmethod
     def _weo_template_file_exists() -> bool:
-        return os.path.exists(OrchestratorFactory._staging_path(OrchestratorFactory._weo_template_file))
+        return os.path.exists(OrchestratorFactory._weo_template_file_path())
+
+    @staticmethod
+    def _weo_template_file_path() -> str:
+        return OrchestratorFactory._staging_path(OrchestratorFactory._weo_template_file)
 
     @staticmethod
     def _download_file_exists() -> bool:
@@ -127,21 +133,19 @@ class OrchestratorFactory:
             Logger.info("Exporting WEO template...")
             self._wsl_api.export_instance(
                 weo_template_temp_instance_name,
-                OrchestratorFactory._staging_path(OrchestratorFactory._weo_template_file))
+                OrchestratorFactory._weo_template_file_path())
 
             self._wsl_api.remove_instance(weo_template_temp_instance_name)
 
     def create_orchestrator(self) -> Orchestrator:
-        if OrchestratorFactory._weo_template_file_exists():
-            raise EOFError()
-        else:
+        if not OrchestratorFactory._weo_template_file_exists():
             Logger.info("WEO not initialized yet. Initializing....")
             OrchestratorFactory._download_ubuntu()
             OrchestratorFactory._extract_ubuntu()
             self._create_orchestrator_template()
+        return self._orchestrator
 
 
 if __name__ == '__main__':
-    # print(OrchestratorFactory.linuxify("C:\\User\\kica"))
     factory = OrchestratorFactory()
     factory.create_orchestrator()

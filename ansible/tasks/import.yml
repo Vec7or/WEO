@@ -1,0 +1,7 @@
+# Restart environment instances
+---
+# Restart a wsl instance
+- name: Delete WSL instance
+  include_role:
+    name: wsl
+    tasks_from: restart

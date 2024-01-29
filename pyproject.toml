@@ -12,6 +12,7 @@ colorama = "^0.4.6"
 pyinstaller = "^6.1.0"
 tqdm = "^4.66.1"
 pylint = "^3.0.2"
+pydantic = "^2.6.0"
 
 
 [build-system]

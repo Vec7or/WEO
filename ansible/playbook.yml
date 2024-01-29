@@ -1,5 +1,5 @@
 ---
-# Run this playbook on all environments as root.
+# Run this playbook on all ansible as root.
 # All commandos will be executed with root permissions except if specified
 # otherwise
 - hosts: zephyr-env
@@ -18,10 +18,14 @@
       include_tasks: "tasks/create.yml"
       when: run_option == "create"
 
-    - name: Delete
-      include_tasks: "tasks/delete.yml"
-      when: run_option == "delete"
+    - name: Remove
+      include_tasks: "tasks/remove.yml"
+      when: run_option == "remove"
 
-    - name: Restart
-      include_tasks: "tasks/restart.yml"
-      when: run_option == "restart"
+    - name: Export
+      include_tasks: "tasks/export.yml"
+      when: run_option == "export"
+
+    - name: Import
+      include_tasks: "tasks/import.yml"
+      when: run_option == "import"

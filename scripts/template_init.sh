@@ -19,7 +19,17 @@ apt-get install openssh-server -y
 # Enable ssh
 systemctl enable ssh
 # Configure the ssh server to only allow certificate secured connections
-echo "ChallengeResponseAuthentication no\nPasswordAuthentication no\nUsePAM no\nPermitRootLogin no\n" \
-  >> /etc/ssh/sshd_config.d/disable_root_login.conf
+printf "ChallengeResponseAuthentication no\nPasswordAuthentication no\nUsePAM no\nPermitRootLogin no\n" \
+  > /etc/ssh/sshd_config.d/disable_root_login.conf
+# Restart ssh
+/etc/init.d/ssh restart
 # Install python
-apt-get install python3 -y
+apt-get install python3 python3-pip python3-venv git -y
+# Install ansible
+pip install pipx
+pipx ensurepath
+pipx install --include-deps ansible
+pipx inject --include-apps ansible argcomplete
+# Get git repository
+git clone https://github.com/Vec7or/WEO.git ~/weo
+git checkout main

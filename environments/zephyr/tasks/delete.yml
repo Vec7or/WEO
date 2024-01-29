@@ -1,7 +1,0 @@
-# Delete environment instances and their data
----
-# Delete a wsl instance
-- name: Delete WSL instance
-  include_role:
-    name: wsl
-    tasks_from: delete

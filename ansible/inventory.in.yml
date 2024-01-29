@@ -1,0 +1,13 @@
+# Inventory of zephyr-env instances
+---
+all:
+  hosts:
+    weo01:
+      ansible_host:                    "{{ weo_host }}"
+      ansible_port:                    "22"
+      ansible_user:                    "{{ weo_user }}"
+      ansible_sudo_pass:               "{{ weo_password }}"
+  children:
+    weo:
+      hosts:
+        weo01:

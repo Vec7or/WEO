@@ -2,7 +2,7 @@ import PyInstaller.__main__
 from pathlib import Path
 
 HERE = Path(__file__).parent.absolute()
-path_to_main = str(HERE / "main.py")
+path_to_main = str(HERE / "WEO.py")
 
 
 def install():
