@@ -21,7 +21,6 @@ class OrchestratorFactory:
     _script_dir = os.path.dirname(os.path.realpath(__file__)) + "\\scripts"
     _ms_download_file = "ubuntu_22-04.zip"
     _ubuntu_template_file = "ubuntu_22-04.tar.gz"
-    _orchestrator_template_file = "weo.tar.gz"
     _weo_template_file = "weo_ubuntu.tar"
     _orchestrator_instance_name = "weo_orchestrator"
 
@@ -50,9 +49,8 @@ class OrchestratorFactory:
     def _ubuntu_template_file_exists() -> bool:
         return os.path.exists(OrchestratorFactory._staging_path(OrchestratorFactory._ubuntu_template_file))
 
-    @staticmethod
-    def _orchestrator_template_file_exists() -> bool:
-        return os.path.exists(OrchestratorFactory._staging_path(OrchestratorFactory._orchestrator_template_file))
+    def _orchestrator_instance_exists(self) -> bool:
+        return self._wsl_api.instance_exists(self._orchestrator_instance_name)
 
     @staticmethod
     def _download_ubuntu() -> None:
@@ -120,7 +118,7 @@ class OrchestratorFactory:
         if self._wsl_api.instance_exists(weo_template_temp_instance_name):
             self._wsl_api.remove_instance(weo_template_temp_instance_name)
 
-        if not OrchestratorFactory._orchestrator_template_file_exists():
+        if not OrchestratorFactory._weo_template_file_exists():
             Logger.info("Creating temporary instance...")
             self._wsl_api.create_instance(
                 weo_template_temp_instance_name,
@@ -137,12 +135,24 @@ class OrchestratorFactory:
 
             self._wsl_api.remove_instance(weo_template_temp_instance_name)
 
+    def _create_orchestrator_instance(self):
+        Logger.info("Creating orchestrator instance...")
+        self._wsl_api.create_instance(
+            self._orchestrator_instance_name,
+            OrchestratorFactory._staging_path(OrchestratorFactory._weo_template_file))
+
+        self._wsl_api.run_script_as_root_in_instance(
+            self._orchestrator_instance_name,
+            OrchestratorFactory._script_dir + "\\orchestrator_template_init.sh")
+        pass
+
     def create_orchestrator(self) -> Orchestrator:
-        if not OrchestratorFactory._weo_template_file_exists():
+        if not self._orchestrator_instance_exists():
             Logger.info("WEO not initialized yet. Initializing....")
             OrchestratorFactory._download_ubuntu()
             OrchestratorFactory._extract_ubuntu()
             self._create_orchestrator_template()
+            self._create_orchestrator_instance()
         return self._orchestrator
 
 

@@ -6,7 +6,7 @@ usermod -aG sudo development
 # Change password for user
 echo "development:development" | chpasswd
 # Change default wsl user
-echo "\n[user]\ndefault=development" >> /etc/wsl.conf
+printf "\n[user]\ndefault=development" >> /etc/wsl.conf
 # Update system
 sudo apt update && sudo apt dist-upgrade -y
 echo "############### 1 ##############"
@@ -25,11 +25,3 @@ printf "ChallengeResponseAuthentication no\nPasswordAuthentication no\nUsePAM no
 /etc/init.d/ssh restart
 # Install python
 apt-get install python3 python3-pip python3-venv git -y
-# Install ansible
-pip install pipx
-pipx ensurepath
-pipx install --include-deps ansible
-pipx inject --include-apps ansible argcomplete
-# Get git repository
-git clone https://github.com/Vec7or/WEO.git ~/weo
-git checkout main

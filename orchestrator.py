@@ -1,8 +1,9 @@
+import subprocess
 from argparse import ArgumentParser
 
 from argument_aggregator import ArgumentAggregator
 from weo_environment_action import WEOEnvironmentAction
-from wsl_api import WslApi
+from wsl_api import WslApi, WslApiError
 
 
 class Orchestrator:
@@ -18,12 +19,21 @@ class Orchestrator:
         if action == WEOEnvironmentAction.CREATE:
             # if self._wsl_api.instance_exists(args.instance_name):
             #    raise RuntimeError("Instance already exists")
-            # self._wsl_api.create_instance(args.instance_name, self._template_path)
+            self._wsl_api.create_instance(args.instance_name, self._template_path)
             try:
                 ip = self._wsl_api.get_instance_ip(args.instance_name)
                 old_port = self._wsl_api.set_instance_ssh_port(args.instance_name, self._temp_ssh_port)
-                print(ip)
+                self._checkout_weo('main')
                 # Ansible shissel
-            except:
+            finally:
                 self._wsl_api.remove_instance(args.instance_name)
-            # self._wsl_api.remove_instance(args.instance_name)
+            self._wsl_api.remove_instance(args.instance_name)
+
+    def _checkout_weo(self, git_hash: str):
+        try:
+            git_checkout = self._wsl_api.run_command_in_instance(self._instance_name,
+                                                                 'cd /opt/weo && git checkout ' + git_hash)
+            print(git_checkout)
+        except WslApiError:
+            print("What?")
+            raise RuntimeError("Could not checkout git hash")

@@ -4,7 +4,6 @@ import os
 from typing import Optional
 
 
-
 class WslApiError(Exception):
     pass
 
@@ -51,6 +50,35 @@ class WslApi:
             raise WslApiError("Script could not be run")
 
     @staticmethod
+    def run_script_in_instance(name: str, script_path: str) -> None:
+        linux_script_path = WslApi._linuxify(script_path)
+        print(linux_script_path)
+        wsl_script = subprocess.run(
+            ['wsl.exe', '-d', name, '-e', linux_script_path],
+            shell=True,
+            # capture_output=True,
+            text=True)
+
+        if wsl_script.returncode != 0:
+            raise WslApiError("Script could not be run")
+
+    @staticmethod
+    def run_command_in_instance(name: str, command: str) -> str:
+        wsl_command = subprocess.run(
+            ['wsl.exe', '-u', 'root', '-d', name, 'bash', '-c',
+             command],
+            shell=True,
+            capture_output=True,
+            text=True)
+        print("Command: " + command)
+        print(wsl_command.stdout)
+
+        if wsl_command.returncode != 0:
+            raise WslApiError("Command could not be run")
+
+        return wsl_command.stdout
+
+    @staticmethod
     def export_instance(name, export_file_path) -> None:
         wsl_script = subprocess.run(
             ['wsl.exe', '--export', name, export_file_path],
@@ -65,36 +93,24 @@ class WslApi:
     def instance_exists(instance_name: str) -> bool:
         return instance_name in WslApi._get_wsl_list()
 
-    @staticmethod
-    def get_instance_ip(name) -> str:
-        wsl_ip = subprocess.run(
-            ['wsl.exe', '-u', 'root', '-d', name, 'bash', '-c',
-             "ip -4 addr show eth0 | grep -oP \'(?<=inet\\s)\\d+(\\.\\d+){3}\'"],
-            shell=True,
-            capture_output=True,
-            text=True)
-
-        if wsl_ip.returncode != 0:
-            print(wsl_ip)
+    def get_instance_ip(self, name) -> str:
+        try:
+            wsl_ip = self.run_command_in_instance(name, "ip -4 addr show eth0 | grep -oP \'(?<=inet\\s)\\d+(\\.\\d+){3}\'")
+        except WslApiError:
             raise WslApiError("Instance ip could not be fetched")
 
-        return wsl_ip.stdout
+        return wsl_ip
 
     def set_instance_ssh_port(self, name: str, new_port: Optional[int]) -> Optional[int]:
         ssh_port_pattern = r"^\s*Port\s*(?P<port>[1-9]{1,4}).*\n"
         old_port = None
         ssh_config = None
-        wsl_old_ssh = subprocess.run(
-            ['wsl.exe', '-u', 'root', '-d', name, 'bash', '-c',
-             'cat /etc/ssh/ssh_config'],
-            shell=True,
-            capture_output=True,
-            text=True)
-
-        if wsl_old_ssh.returncode != 0:
+        try:
+            wsl_old_ssh = self.run_command_in_instance(name, 'cat /etc/ssh/ssh_config')
+        except WslApiError:
             raise WslApiError("SSH config of instance could not be read")
 
-        ssh_config = wsl_old_ssh.stdout
+        ssh_config = wsl_old_ssh
 
         port_search = re.search(ssh_port_pattern, ssh_config, flags=re.MULTILINE)
         if port_search is not None:
@@ -119,25 +135,18 @@ class WslApi:
             temp_ssh_config_path = self._storage_path + "/temp_ssh_config"
             with open(temp_ssh_config_path, "w") as f:
                 f.write(ssh_config)
-            wsl_write_ssh = subprocess.run(
-                ['wsl.exe', '-u', 'root', '-d', name, 'bash', '-c',
-                 'cat ' + self._linuxify(temp_ssh_config_path) + ' > /etc/ssh/ssh_config'],
-                shell=True,
-                capture_output=True,
-                text=True)
-            os.remove(temp_ssh_config_path)
-            if wsl_write_ssh.returncode != 0:
-                print(wsl_write_ssh)
+            try:
+                wsl_write_ssh = self.run_command_in_instance(name, 'cat ' + self._linuxify(
+                    temp_ssh_config_path) + ' > /etc/ssh/ssh_config')
+                os.remove(temp_ssh_config_path)
+            except WslApiError:
+                os.remove(temp_ssh_config_path)
                 raise WslApiError("SSH config of instance could not be written")
 
         # Restart ssh service
-        wsl_restart_ssh = subprocess.run(
-            ['wsl.exe', '-u', 'root', '-d', name, 'bash', '-c',
-             '/etc/init.d/ssh restart'],
-            shell=True,
-            capture_output=True,
-            text=True)
-        if wsl_restart_ssh.returncode != 0:
+        try:
+            wsl_restart_ssh = self.run_command_in_instance(name, '/etc/init.d/ssh restart')
+        except WslApiError:
             raise WslApiError("SSH service could not be restarted")
 
         return old_port
