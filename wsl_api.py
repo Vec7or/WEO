@@ -19,6 +19,7 @@ class WslApi:
         wsl_create = subprocess.run(
             ['wsl.exe', '--import', name, self._storage_path + name, template_path],
             shell=True,
+            check=True,
             capture_output=True,
             text=True)
 
@@ -29,6 +30,7 @@ class WslApi:
         wsl_delete = subprocess.run(
             ['wsl.exe', '--unregister', name],
             shell=True,
+            check=True,
             capture_output=True,
             text=True)
         if wsl_delete.returncode == 0:
@@ -37,12 +39,12 @@ class WslApi:
             raise WslApiError("Instance could not be removed")
 
     @staticmethod
-    def run_script_as_root_in_instance(name: str, script_path: str) -> None:
+    def run_script_as_root_in_instance(name: str, script_path: str, *args) -> None:
         linux_script_path = WslApi._linuxify(script_path)
-        print(linux_script_path)
         wsl_script = subprocess.run(
-            ['wsl.exe', '-u', 'root', '-d', name, '-e', linux_script_path],
+            ['wsl.exe', '-u', 'root', '-d', name, '-e', linux_script_path, *args],
             shell=True,
+            check=True,
             # capture_output=True,
             text=True)
 
@@ -52,10 +54,10 @@ class WslApi:
     @staticmethod
     def run_script_in_instance(name: str, script_path: str) -> None:
         linux_script_path = WslApi._linuxify(script_path)
-        print(linux_script_path)
         wsl_script = subprocess.run(
             ['wsl.exe', '-d', name, '-e', linux_script_path],
             shell=True,
+            check=True,
             # capture_output=True,
             text=True)
 
@@ -68,6 +70,7 @@ class WslApi:
             ['wsl.exe', '-u', 'root', '-d', name, 'bash', '-c',
              command],
             shell=True,
+            check=True,
             capture_output=True,
             text=True)
         print("Command: " + command)
@@ -83,6 +86,7 @@ class WslApi:
         wsl_script = subprocess.run(
             ['wsl.exe', '--export', name, export_file_path],
             shell=True,
+            check=True,
             capture_output=True,
             text=True)
 

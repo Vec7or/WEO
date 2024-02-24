@@ -1,5 +1,7 @@
 import os.path
+import secrets
 import shutil
+import string
 import time
 import zipfile
 from os import close
@@ -23,6 +25,7 @@ class OrchestratorFactory:
     _ubuntu_template_file = "ubuntu_22-04.tar.gz"
     _weo_template_file = "weo_ubuntu.tar"
     _orchestrator_instance_name = "weo_orchestrator"
+    _orchestrator_admin_username = "weo_orchestrator_admin"
 
     def __init__(self):
         wsl_storage_dir = os.path.expanduser('~') + "\\wsl"
@@ -113,7 +116,7 @@ class OrchestratorFactory:
             shutil.rmtree(OrchestratorFactory._staging_path(ms_download_extracted_folder))
             shutil.rmtree(OrchestratorFactory._staging_path(ms_download_extracted_folder_inner))
 
-    def _create_orchestrator_template(self) -> None:
+    def _create_orchestrator_template(self, password: str) -> None:
         weo_template_temp_instance_name = "weo_temp_instance"
         if self._wsl_api.instance_exists(weo_template_temp_instance_name):
             self._wsl_api.remove_instance(weo_template_temp_instance_name)
@@ -126,7 +129,11 @@ class OrchestratorFactory:
 
             self._wsl_api.run_script_as_root_in_instance(
                 weo_template_temp_instance_name,
-                OrchestratorFactory._script_dir + "\\template_init.sh")
+                OrchestratorFactory._script_dir + "\\template_init.sh",
+                "-u",
+                self._orchestrator_admin_username,
+                "-p",
+                password)
 
             Logger.info("Exporting WEO template...")
             self._wsl_api.export_instance(
@@ -135,7 +142,7 @@ class OrchestratorFactory:
 
             self._wsl_api.remove_instance(weo_template_temp_instance_name)
 
-    def _create_orchestrator_instance(self):
+    def _create_orchestrator_instance(self, password):
         Logger.info("Creating orchestrator instance...")
         self._wsl_api.create_instance(
             self._orchestrator_instance_name,
@@ -143,16 +150,34 @@ class OrchestratorFactory:
 
         self._wsl_api.run_script_as_root_in_instance(
             self._orchestrator_instance_name,
-            OrchestratorFactory._script_dir + "\\orchestrator_template_init.sh")
-        pass
+            OrchestratorFactory._script_dir + "\\orchestrator_template_init.sh",
+            "-u",
+            self._orchestrator_admin_username,
+            "-p",
+            password)
 
-    def create_orchestrator(self) -> Orchestrator:
-        if not self._orchestrator_instance_exists():
+    def is_initialized(self) -> bool:
+        return self._orchestrator_instance_exists()
+
+    def initialize_orchestrator(self, default_user:str, default_password:str) -> None:
+        try:
+            alphabet = string.ascii_letters + string.digits
+            password = password = ''.join(secrets.choice(alphabet) for i in range(32))
             Logger.info("WEO not initialized yet. Initializing....")
             OrchestratorFactory._download_ubuntu()
             OrchestratorFactory._extract_ubuntu()
-            self._create_orchestrator_template()
-            self._create_orchestrator_instance()
+            self._create_orchestrator_template(password)
+            self._create_orchestrator_instance(password)
+        except Exception as e:
+            if self._orchestrator_instance_exists():
+                self._wsl_api.remove_instance(self._orchestrator_instance_name)
+            if OrchestratorFactory._weo_template_file_exists():
+                os.remove(OrchestratorFactory._weo_template_file_path())
+            raise e
+
+    def create_orchestrator(self) -> Orchestrator:
+        if not self._orchestrator_instance_exists():
+            raise Exception("WEO not initialized yet")
         return self._orchestrator
 
 

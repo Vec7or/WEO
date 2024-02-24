@@ -13,9 +13,8 @@ class BasicEnvironment(WEOEnvironment):
         if action == WEOEnvironmentAction.CREATE:
             argument_parser.add_argument('-e', '--environment', required=True, type=str, metavar='ENVIRONMENT',
                                          help='The environment affected by the action.')
-        argument_parser.add_argument('-in', '--instance-name', required=True, type=str, metavar='INSTANCE_NAME',
+            argument_parser.add_argument('-in', '--instance-name', required=True, type=str, metavar='INSTANCE_NAME',
                                      help='The name of the instance to be affected')
-        pass
 
     def __init__(self):
         pass
