@@ -65,9 +65,9 @@ class WslApi:
             raise WslApiError("Script could not be run")
 
     @staticmethod
-    def run_command_in_instance(name: str, command: str) -> str:
+    def run_command_in_instance(name: str, command: str, user: str = 'root') -> str:
         wsl_command = subprocess.run(
-            ['wsl.exe', '-u', 'root', '-d', name, 'bash', '-c',
+            ['wsl.exe', '-u', user, '-d', name, 'bash', '-c',
              command],
             shell=True,
             check=True,
@@ -100,6 +100,7 @@ class WslApi:
     def get_instance_ip(self, name) -> str:
         try:
             wsl_ip = self.run_command_in_instance(name, "ip -4 addr show eth0 | grep -oP \'(?<=inet\\s)\\d+(\\.\\d+){3}\'")
+            wsl_ip = wsl_ip.strip()
         except WslApiError:
             raise WslApiError("Instance ip could not be fetched")
 
@@ -108,13 +109,10 @@ class WslApi:
     def set_instance_ssh_port(self, name: str, new_port: Optional[int]) -> Optional[int]:
         ssh_port_pattern = r"^\s*Port\s*(?P<port>[1-9]{1,4}).*\n"
         old_port = None
-        ssh_config = None
         try:
-            wsl_old_ssh = self.run_command_in_instance(name, 'cat /etc/ssh/ssh_config')
+            ssh_config = self.run_command_in_instance(name, 'cat /etc/ssh/ssh_config')
         except WslApiError:
             raise WslApiError("SSH config of instance could not be read")
-
-        ssh_config = wsl_old_ssh
 
         port_search = re.search(ssh_port_pattern, ssh_config, flags=re.MULTILINE)
         if port_search is not None:
@@ -140,7 +138,7 @@ class WslApi:
             with open(temp_ssh_config_path, "w") as f:
                 f.write(ssh_config)
             try:
-                wsl_write_ssh = self.run_command_in_instance(name, 'cat ' + self._linuxify(
+                self.run_command_in_instance(name, 'cat ' + self._linuxify(
                     temp_ssh_config_path) + ' > /etc/ssh/ssh_config')
                 os.remove(temp_ssh_config_path)
             except WslApiError:
@@ -149,7 +147,7 @@ class WslApi:
 
         # Restart ssh service
         try:
-            wsl_restart_ssh = self.run_command_in_instance(name, '/etc/init.d/ssh restart')
+            self.run_command_in_instance(name, '/etc/init.d/ssh restart')
         except WslApiError:
             raise WslApiError("SSH service could not be restarted")
 

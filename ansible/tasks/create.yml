@@ -1,7 +1,8 @@
 # Create new environment instances
 ---
-# Create a new wsl instance
+# Environment basic
 - name: Create basic instance
+  when: weo_environment == "basic"
   include_role:
     name: basic
     tasks_from: create

@@ -2,4 +2,5 @@
 ---
 # The name used for the wsl instance
 wsl_instance_name: {{ inventory_hostname }}
-wsl_template_file: "$HOME/ubuntu.tar"
+instance_user_password: passw0rd
+instance_user_sudo: true

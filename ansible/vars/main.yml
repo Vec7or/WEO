@@ -2,4 +2,4 @@
 ---
 # The name of the environment to be created
 weo_environment: basic
-weo_user_name: rutli
+instance_user_name: developer

@@ -2,15 +2,12 @@
 # Run this playbook on all ansible as root.
 # All commandos will be executed with root permissions except if specified
 # otherwise
-- hosts: zephyr-env
+- hosts: weo
   become: true
-  # Set the variable file and the vault file to be used
+  #Set the variable file and the vault file to be used
   vars_files:
     - vars/main.yml
     - vault/main.yml
-  handlers:
-    - name: Reload udev configuration
-      command: udevadm control --reload
 
   # Include the correct play dependent on the run_option
   tasks:

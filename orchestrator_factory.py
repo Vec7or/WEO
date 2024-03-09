@@ -9,6 +9,7 @@ from os import close
 import requests
 from tqdm import tqdm
 
+from config_manager import ConfigManager
 from logger import Logger
 from orchestrator import Orchestrator
 from wsl_api import WslApi
@@ -26,11 +27,14 @@ class OrchestratorFactory:
     _weo_template_file = "weo_ubuntu.tar"
     _orchestrator_instance_name = "weo_orchestrator"
     _orchestrator_admin_username = "weo_orchestrator_admin"
+    _weo_config_path = '/etc/weo.conf'
 
     def __init__(self):
         wsl_storage_dir = os.path.expanduser('~') + "\\wsl"
         self._wsl_api = WslApi(wsl_storage_dir)
-        self._orchestrator = Orchestrator(self._orchestrator_instance_name, self._wsl_api, self._weo_template_file_path())
+        self._config_manager = ConfigManager(self._wsl_api, self._orchestrator_instance_name, self._weo_config_path)
+        self._orchestrator = Orchestrator(self._orchestrator_instance_name, self._wsl_api,
+                                          self._weo_template_file_path(), self._config_manager)
 
     @staticmethod
     def _staging_path(file: str) -> str:
@@ -159,7 +163,7 @@ class OrchestratorFactory:
     def is_initialized(self) -> bool:
         return self._orchestrator_instance_exists()
 
-    def initialize_orchestrator(self, default_user:str, default_password:str) -> None:
+    def initialize_orchestrator(self, default_user: str, default_password: str) -> None:
         try:
             alphabet = string.ascii_letters + string.digits
             password = password = ''.join(secrets.choice(alphabet) for i in range(32))
