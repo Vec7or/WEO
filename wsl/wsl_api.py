@@ -1,20 +1,22 @@
 import subprocess
 import os
 
+import click
+
 
 class WslApiError(Exception):
     pass
 
 
 class WslApi:
-    def __init__(self, storage_path: str):
+    def __init__(self, storage_path: str, verbose: bool):
         if not storage_path.endswith("\\"):
             storage_path = storage_path + "\\"
         self._storage_path = storage_path
+        self._verbose = verbose
         os.makedirs(self._storage_path, exist_ok=True)
 
     def create_instance(self, name: str, template_path: str) -> None:
-        print(f"Creating instance {name}")
         wsl_create = subprocess.run(
             ['wsl.exe', '--import', name, self._storage_path + name, template_path],
             shell=True,
@@ -35,16 +37,14 @@ class WslApi:
             check=False,
             capture_output=True,
             text=True)
-        if wsl_delete.returncode == 0:
-            os.rmdir(self._storage_path + name)
-        else:
+        if wsl_delete.returncode != 0:
             stdout = "" if not wsl_delete.stdout else " Stdout: " + wsl_delete.stdout
             stderr = "" if not wsl_delete.stderr else " Stderr: " + wsl_delete.stderr
             raise WslApiError("Instance could not be removed." + stdout + stderr)
 
-    @staticmethod
-    def run_command_in_instance(name: str, command: str, user: str = 'root') -> str:
-        print(command)
+    def run_command_in_instance(self, name: str, command: str, user: str = 'root') -> str:
+        if self._verbose:
+            click.secho(f"[DEBUG:] {command}", fg="cyan")
         wsl_command = subprocess.run(
             ['wsl.exe', '-u', user, '-d', name, 'sh', '-c',
              command],
@@ -60,9 +60,8 @@ class WslApi:
 
         return wsl_command.stdout
 
-    @staticmethod
-    def file_exists_in_instance(name: str, path: str) -> bool:
-        res = WslApi.run_command_in_instance(
+    def file_exists_in_instance(self, name: str, path: str) -> bool:
+        res = self.run_command_in_instance(
             name,
             f"test -f {path} && echo \"EXISTS\" || echo \"NOT EXISTENT\""
         )

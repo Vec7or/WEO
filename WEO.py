@@ -3,7 +3,7 @@ import sys
 from enum import Enum
 
 import click
-from colorama import Fore, Style
+from rich.console import Console
 
 from config.version import WEO_VERSION
 from exceptions.ConfigNotFoundError import ConfigNotFoundError
@@ -19,22 +19,23 @@ class ExitCodes(Enum):
     CREATION_FAILURE = 26
 
 
-def _get_orchestrator() -> Orchestrator:
-    orchestrator_factory = OrchestratorFactory()
+def _get_orchestrator(verbose: bool) -> Orchestrator:
+    click.secho(f"Checking WEO status", fg="blue")
+    orchestrator_factory = OrchestratorFactory(verbose)
     match orchestrator_factory.status:
         case OrchestratorFactoryStatus.OK:
-            click.echo(f"{Fore.LIGHTBLUE_EX}WEO already initialized. Continuing...{Style.RESET_ALL}")
+            click.secho(f"WEO already initialized. Continuing...", fg="blue")
         case OrchestratorFactoryStatus.NO_ORCHESTRATOR:
-            click.echo(f"{Fore.LIGHTBLUE_EX}WEO not initialized yet. Initializing...{Style.RESET_ALL}")
+            click.secho(f"WEO not initialized yet. Initializing...", fg="blue")
         case OrchestratorFactoryStatus.INCOMPATIBLE_ORCHESTRATOR:
-            click.echo(f"{Fore.LIGHTYELLOW_EX}Orchestrator instance incompatible with WEO version. Adjusting "
-                       f"orchestrator instance...{Style.RESET_ALL}")
+            click.secho("Orchestrator instance incompatible with WEO version. Adjusting "
+                       "orchestrator instance...", fg="blue")
 
     try:
         orchestrator_factory.initialize(overwrite=True)
         return orchestrator_factory.create_orchestrator()
     except OrchestratorError as e:
-        click.echo(f"{Fore.RED}{e}{Style.RESET_ALL}")
+        click.secho(f"{e}", fg="red")
         sys.exit(ExitCodes.INIT_FAILURE.value)
 
 
@@ -63,32 +64,50 @@ def cli():
               required=False,
               help="The user that should be used within the environment. "
                    "This user needs to exist in the image.")
-def create(docker_image, environment_name, local, environment_password, user):
-    orchestrator = _get_orchestrator()
+@click.option("-v", "--verbose",
+              is_flag=True,
+              required=False,
+              help="Print verbose log outputs.")
+def create(docker_image, environment_name, local, environment_password, user, verbose):
+    orchestrator = _get_orchestrator(verbose)
     try:
-        orchestrator.create(docker_image, environment_name, local, environment_password, user)
+        click.secho(f"Creating environment {environment_name}", fg="blue")
+        if not verbose:
+            console = Console()
+            with console.status("[bold dodger_blue1]Working on creation...") as status:
+                log_func = lambda str : status.update(f"[bold dodger_blue1] {str}")
+                orchestrator.create(log_func, docker_image, environment_name, local, environment_password, user)
+        else:
+            log_func = lambda str : click.secho(f"[PROGRESS:] {str}", fg="blue")
+            orchestrator.create(log_func, docker_image, environment_name, local, environment_password, user)
+
+        click.secho(f"Successfully created environment {environment_name}", fg="blue")
     except (OrchestratorError, configparser.Error, EnvironmentExistsError) as e:
-        click.echo(f"{Fore.RED}{e}{Style.RESET_ALL}")
+        click.secho(f"{e}", fg="red")
         sys.exit(ExitCodes.CREATION_FAILURE.value)
 
 
 @cli.command(help="Removes an existing wsl environment")
 @click.option("-e", "--environment-name", required=True,
               help="The name of the new environment that will be removed")
-def remove(environment_name):
-    orchestrator = _get_orchestrator()
+@click.option("-v", "--verbose",
+              is_flag=True,
+              required=False,
+              help="Print verbose log outputs.")
+def remove(environment_name, verbose):
+    orchestrator = _get_orchestrator(verbose)
     try:
+        click.secho(f"Removing environment {environment_name}", fg="blue")
         orchestrator.remove(environment_name)
-        click.echo(f"{Fore.LIGHTBLUE_EX}Successfully removed environment {environment_name}{Style.RESET_ALL}")
+        click.secho(f"Successfully removed environment {environment_name}", fg="blue")
     except EnvironmentNotFoundError:
-        click.echo(f"{Fore.LIGHTYELLOW_EX}Environment does not exist. Skipping...{Style.RESET_ALL}")
+        click.secho(f"Environment {environment_name} does not exist. Skipping...", fg="yellow")
     except ConfigNotFoundError:
-        click.echo(f"{Fore.RED}The environment was not created by WEO. Aborting...{Style.RESET_ALL}")
+        click.secho(f"The environment {environment_name} was not created by WEO. Aborting...", fg="red")
     except configparser.Error:
-        click.echo(
-            f"{Fore.RED}The environment does not have a valid WEO configuration file. Aborting...{Style.RESET_ALL}")
+        click.secho(f"The environment {environment_name} does not have a valid WEO configuration file. Aborting...", fg="red")
     except OrchestratorError as e:
-        click.echo(f"{Fore.RED}{e}{Style.RESET_ALL}")
+        click.secho(f"{e}", fg="red")
         sys.exit(ExitCodes.CREATION_FAILURE.value)
 
 
@@ -111,13 +130,11 @@ def remove(environment_name):
 
 
 if __name__ == '__main__':
-    click.echo(Fore.GREEN)
-    click.echo("██     ██     ███████              ██████             ")
-    click.echo("██     ██     ██                  ██    ██            ")
-    click.echo("██  █  ██     █████               ██    ██            ")
-    click.echo("██ ███ ██     ██                  ██    ██            ")
-    click.echo(" ███ ███  SL  ███████ NVIRONMENT   ██████  RCHESTRATOR")
-    click.echo("                                                      ")
-    click.echo(f"VERSION: {WEO_VERSION}                               ")
-    click.echo(Style.RESET_ALL)
+    click.secho("██     ██     ███████              ██████             ", fg="green")
+    click.secho("██     ██     ██                  ██    ██            ", fg="green")
+    click.secho("██  █  ██     █████               ██    ██            ", fg="green")
+    click.secho("██ ███ ██     ██                  ██    ██            ", fg="green")
+    click.secho(" ███ ███  SL  ███████ NVIRONMENT   ██████  RCHESTRATOR", fg="green")
+    click.secho("                                                      ", fg="green")
+    click.secho(f"VERSION: {WEO_VERSION}                               ", fg="green")
     cli()

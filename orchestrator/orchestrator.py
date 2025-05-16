@@ -4,6 +4,8 @@ import secrets
 import string
 import random
 from tempfile import TemporaryDirectory
+import time
+from typing import Callable
 
 from semver import Version
 
@@ -154,27 +156,36 @@ class Orchestrator:
             self._wsl_api.run_command_in_instance(self._instance_name,
                                                   "echo y | docker system prune -a")
 
-    def create(self, docker_image: str, environment_name: str, local: str | None, environment_password: str,
+    def create(self, step_desc: Callable[[str], None] , docker_image: str, environment_name: str, local: str | None, environment_password: str,
                user: str | None = None) -> None:
         if self._wsl_api.instance_exists(environment_name):
             raise EnvironmentExistsError()
         tmp_docker_tag = "weo:" + ''.join(random.choices(string.ascii_uppercase + string.digits, k=15))
         with TemporaryDirectory() as temp_dir:
+            step_desc("Preparing directory")
             lnx_tmp_dir = '/tmp/' + ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
             self._wsl_api.run_command_in_instance(self._instance_name, f"mkdir -p {lnx_tmp_dir}")
             try:
+                step_desc("Preparing dockerfile")
                 self._prepare_dockerfile(docker_image, local, lnx_tmp_dir)
+                step_desc("Creating image")
                 self._create_image(tmp_docker_tag, lnx_tmp_dir)
                 if not user:
+                    step_desc("Identifying user")
                     user = self._get_docker_user(tmp_docker_tag)
+                step_desc("Getting rootfs")
                 self._get_rootfs(tmp_docker_tag, lnx_tmp_dir)
+                step_desc("Configuring rootfs")
                 self._config_rootfs(lnx_tmp_dir, user, docker_image, local)
+                step_desc("Adjusting password")
                 self._change_password_rootfs(lnx_tmp_dir, user, environment_password)
+                step_desc("Packing rootfs")
                 self._pack_rootfs(lnx_tmp_dir)
+                step_desc("Moving rootfs")
                 self._move_rootfs(lnx_tmp_dir, temp_dir)
                 rootfs_image = os.path.join(temp_dir, self._rootfs_file_name)
+                step_desc("Creating WSL instance")
                 self._wsl_api.create_instance(environment_name, rootfs_image)
-
             finally:
                 self._wsl_api.run_command_in_instance(self._instance_name, f"rm -r {lnx_tmp_dir}")
                 self._cleanup_docker()

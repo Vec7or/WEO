@@ -1,6 +1,6 @@
 [project]
 name = "WEO"
-version = "0.dev"
+version = "0.1.0"
 description = "WEO - WSL Environment Orchestrator"
 authors = [
     {name = "Vec7or", email = "vec7or@secmessage.ch"},
@@ -9,7 +9,7 @@ readme = "README.md"
 
 [tool.poetry]
 name = "WEO"
-version = "0.dev"
+version = "0.1.0"
 description = "WEO - WSL Environment Orchestrator"
 authors = [
     "Vec7or <vec7or@secmessage.ch>"
@@ -19,14 +19,13 @@ readme = "README.md"
 [tool.poetry.dependencies]
 python = ">=3.12,<3.13"
 requests = "^2.31.0"
-colorama = "^0.4.6"
 pyinstaller = "^6.1.0"
-tqdm = "^4.66.1"
 pylint = "^3.0.2"
 pydantic = "^2.6.0"
 click = "^8.1.7"
 semver = "^3.0.2"
 cx-freeze = "^7.2.7"
+rich = "^14.0.0"
 
 [build-system]
 requires = ["poetry-core"]
