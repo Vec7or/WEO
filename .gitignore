@@ -5,3 +5,8 @@ staging
 build
 dist
 *.spec
+
+
+# Added by cargo
+
+/target
